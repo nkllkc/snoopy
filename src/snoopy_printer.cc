@@ -13,7 +13,29 @@ void print_eth_frame(const u_char *packet_body,
     printf("Destination MAC: %s\n",
            ether_ntoa((const struct ether_addr *)eth_header->ether_dhost));
     printf("Type: %x\n", ntohs(eth_header->ether_type));
-    // print the rest of the packet here
+
+    printf("caplen: %d\n", packet_header.caplen);
+    printf("len: %d\n", packet_header.len);
+    printf("sizeof(struct ether_header): %d\n", sizeof(struct ether_header));
+
+    // Calculate the size of the packet body
+    int packet_size = packet_header.caplen - sizeof(struct ether_header);
+    printf("Packet size without header: %d bytes\n", packet_size);
+
+    // Extract and print the payload
+    int payload_offset = sizeof(struct ether_header);
+    int payload_size = packet_size - 4;  // subtract the FCS size
+    printf("Payload size: %d bytes\n", payload_size);
+    printf("Payload:\n");
+    for (int i = payload_offset; i < payload_offset + payload_size; i++)
+    {
+        printf("%02x ", packet_body[i]);
+    }
+    printf("\n");
+
+    // Extract and print the FCS field
+    uint32_t fcs = *(uint32_t *)(packet_body + packet_header.caplen - 4);
+    printf("FCS: %08x\n", ntohl(fcs));
 }
 
 void process_packet(u_char *args, const struct pcap_pkthdr *packet_header,
@@ -67,7 +89,7 @@ int main(int argc, char **argv)
 
     // The `cnt` value of -1 indicates that inifite number of packages should be
     // processed. Call `process_packet` on every packet received.
-    pcap_loop(handle, -1, process_packet, NULL);
+    pcap_loop(handle, 10, process_packet, NULL);
 
     pcap_close(handle);
     return 0;
