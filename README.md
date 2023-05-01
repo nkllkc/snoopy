@@ -1,4 +1,4 @@
-# Snoopy - Let's soop some ethernet
+# Snoopy - Let's snoop some ethernet
 
 ## Hardware Used
 
