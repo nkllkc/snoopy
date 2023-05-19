@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "util.h"
+
 void print_eth_frame(const u_char *packet_body,
                      struct pcap_pkthdr packet_header)
 {
@@ -38,6 +40,60 @@ void print_eth_frame(const u_char *packet_body,
     printf("FCS: %08x\n", ntohl(fcs));
 }
 
+void got_packet(u_char *args, const struct pcap_pkthdr *header,
+                const u_char *packet)
+{
+    const struct sniff_ethernet *ethernet; /* The ethernet header */
+    const struct sniff_ip *ip;             /* The IP header */
+    const struct sniff_tcp *tcp;           /* The TCP header */
+    const u_char *payload;                 /* Packet payload */
+
+    u_int size_ip;
+    u_int size_tcp;
+
+    ethernet = (struct sniff_ethernet *)(packet);
+    ip = (struct sniff_ip *)(packet + SIZE_ETHERNET);
+    size_ip = IP_HL(ip) * 4;
+    if (size_ip < 20)
+    {
+        printf("   * Invalid IP header length: %u bytes\n", size_ip);
+        return;
+    }
+
+    /* print source and destination IP addresses */
+    printf("       From: %s\n", inet_ntoa(ip->ip_src));
+    printf("         To: %s\n", inet_ntoa(ip->ip_dst));
+
+    /* determine protocol */
+    switch (ip->ip_p)
+    {
+        case IPPROTO_TCP:
+            printf("   Protocol: TCP\n");
+            break;
+        case IPPROTO_UDP:
+            printf("   Protocol: UDP\n");
+            return;
+        case IPPROTO_ICMP:
+            printf("   Protocol: ICMP\n");
+            return;
+        case IPPROTO_IP:
+            printf("   Protocol: IP\n");
+            return;
+        default:
+            printf("   Protocol: unknown\n");
+            return;
+    }
+
+    // tcp = (struct sniff_tcp *)(packet + SIZE_ETHERNET + size_ip);
+    // size_tcp = TH_OFF(tcp) * 4;
+    // if (size_tcp < 20)
+    // {
+    //     printf("   * Invalid TCP header length: %u bytes\n", size_tcp);
+    //     return;
+    // }
+    // payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
+}
+
 void process_packet(u_char *args, const struct pcap_pkthdr *packet_header,
                     const u_char *packet_body)
 {
@@ -56,7 +112,7 @@ int main(int argc, char **argv)
 
     char error_buffer[PCAP_ERRBUF_SIZE];
     pcap_t *handle;
-    const u_char *packet;
+    // const u_char *packet;
     // struct pcap_pkthdr packet_header;
 
     // Obtain a packet capture handle to the given interface.
@@ -74,7 +130,9 @@ int main(int argc, char **argv)
 
     struct bpf_program filter;
     // Compile the string `str` into a filter program.
-    if (pcap_compile(handle, &filter, /*str*/ "ether proto 0x0800",
+    if (pcap_compile(handle, &filter,
+                     // /*str*/ "ether proto 0x0800",
+                     "udp port 53",
                      /*optimize*/ 1, PCAP_NETMASK_UNKNOWN) == -1)
     {
         printf("Couldn't compile filter: %s\n", pcap_geterr(handle));
@@ -89,7 +147,8 @@ int main(int argc, char **argv)
 
     // The `cnt` value of -1 indicates that inifite number of packages should be
     // processed. Call `process_packet` on every packet received.
-    pcap_loop(handle, 10, process_packet, NULL);
+    // pcap_loop(handle, -1, process_packet, NULL);
+    pcap_loop(handle, -1, got_packet, NULL);
 
     pcap_close(handle);
     return 0;
