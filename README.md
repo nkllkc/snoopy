@@ -1,4 +1,4 @@
-# Snoopy - Let's soop some ethernet
+# Snoopy - Let's snoop some ethernet
 
 This is a simple, educational, implementation of a [network packet analyzer](https://en.wikipedia.org/wiki/Packet_analyzer).
 
