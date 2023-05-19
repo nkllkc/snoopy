@@ -40,19 +40,47 @@ void print_eth_frame(const u_char *packet_body,
     printf("FCS: %08x\n", ntohl(fcs));
 }
 
+uint16_t validate_udp_checksum(const struct snoop_udp *udp)
+{
+    uint16_t *ptr = (uint16_t *)udp;
+    size_t len = sizeof(struct snoop_udp);
+    uint32_t sum = 0;
+
+    while (len > 1)
+    {
+        sum += *ptr++;
+        len -= sizeof(uint16_t);
+    }
+
+    if (len) sum += *(uint8_t *)ptr;
+
+    sum = (sum >> 16) + (sum & 0xFFFF);
+    sum += (sum >> 16);
+
+    return (uint16_t)(~sum);
+}
+
+void process_udp(const struct snoop_udp *udp)
+{
+    printf("    Src Port: %d\n", udp->uh_sport);
+    printf("    Dst Port: %d\n", udp->uh_dport);
+    printf("    Checksum Validation: %d\n", validate_udp_checksum(udp) == 0);
+}
+
 void got_packet(u_char *args, const struct pcap_pkthdr *header,
                 const u_char *packet)
 {
-    const struct sniff_ethernet *ethernet; /* The ethernet header */
-    const struct sniff_ip *ip;             /* The IP header */
-    const struct sniff_tcp *tcp;           /* The TCP header */
+    const struct snoop_ethernet *ethernet; /* The ethernet header */
+    const struct snoop_ip *ip;             /* The IP header */
+    const struct snoop_tcp *tcp;           /* The TCP header */
+    const struct snoop_udp *udp;           /* The UDP header */
     const u_char *payload;                 /* Packet payload */
 
     u_int size_ip;
     u_int size_tcp;
 
-    ethernet = (struct sniff_ethernet *)(packet);
-    ip = (struct sniff_ip *)(packet + SIZE_ETHERNET);
+    ethernet = (struct snoop_ethernet *)(packet);
+    ip = (struct snoop_ip *)(packet + SIZE_ETHERNET);
     size_ip = IP_HL(ip) * 4;
     if (size_ip < 20)
     {
@@ -72,6 +100,8 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
             break;
         case IPPROTO_UDP:
             printf("   Protocol: UDP\n");
+            udp = (struct snoop_udp *)(packet + SIZE_ETHERNET + size_ip);
+            process_udp(udp);
             return;
         case IPPROTO_ICMP:
             printf("   Protocol: ICMP\n");
@@ -84,7 +114,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
             return;
     }
 
-    // tcp = (struct sniff_tcp *)(packet + SIZE_ETHERNET + size_ip);
+    // tcp = (struct snoop_tcp *)(packet + SIZE_ETHERNET + size_ip);
     // size_tcp = TH_OFF(tcp) * 4;
     // if (size_tcp < 20)
     // {

@@ -9,7 +9,7 @@
 #define SIZE_ETHERNET 14
 
 /* Ethernet header */
-struct sniff_ethernet
+struct snoop_ethernet
 {
     u_char ether_dhost[ETHER_ADDR_LEN]; /* Destination host address */
     u_char ether_shost[ETHER_ADDR_LEN]; /* Source host address */
@@ -17,7 +17,7 @@ struct sniff_ethernet
 };
 
 /* IP header */
-struct sniff_ip
+struct snoop_ip
 {
     u_char ip_vhl;                 /* version << 4 | header length >> 2 */
     u_char ip_tos;                 /* type of service */
@@ -39,7 +39,7 @@ struct sniff_ip
 /* TCP header */
 typedef u_int tcp_seq;
 
-struct sniff_tcp
+struct snoop_tcp
 {
     u_short th_sport; /* source port */
     u_short th_dport; /* destination port */
@@ -60,6 +60,14 @@ struct sniff_tcp
     u_short th_win; /* window */
     u_short th_sum; /* checksum */
     u_short th_urp; /* urgent pointer */
+};
+
+struct snoop_udp
+{
+    u_short uh_sport; /* source port */
+    u_short uh_dport; /* destination port */
+    u_short uh_ulen;  /* length */
+    u_short uh_sum;   /* checksum */
 };
 
 #endif  //_MY_PCAP_UTIL_H_
