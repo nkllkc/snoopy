@@ -6,7 +6,7 @@ TARGET = out/snoopy_printer out/device_list
 
 all: $(TARGET)
 
-out/snoopy_printer: src/snoopy_printer.cc src/util.h
+out/snoopy_printer: src/snoopy_printer.cc src/util.h src/udp_processor.h src/udp_processor.cc 
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
 out/device_list: src/device_list.cc

@@ -4,68 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "udp_processor.h"
 #include "util.h"
-
-void print_eth_frame(const u_char *packet_body,
-                     struct pcap_pkthdr packet_header)
-{
-    struct ether_header *eth_header = (struct ether_header *)packet_body;
-    printf("Source MAC: %s\n",
-           ether_ntoa((const struct ether_addr *)eth_header->ether_shost));
-    printf("Destination MAC: %s\n",
-           ether_ntoa((const struct ether_addr *)eth_header->ether_dhost));
-    printf("Type: %x\n", ntohs(eth_header->ether_type));
-
-    printf("caplen: %d\n", packet_header.caplen);
-    printf("len: %d\n", packet_header.len);
-    printf("sizeof(struct ether_header): %d\n", sizeof(struct ether_header));
-
-    // Calculate the size of the packet body
-    int packet_size = packet_header.caplen - sizeof(struct ether_header);
-    printf("Packet size without header: %d bytes\n", packet_size);
-
-    // Extract and print the payload
-    int payload_offset = sizeof(struct ether_header);
-    int payload_size = packet_size - 4;  // subtract the FCS size
-    printf("Payload size: %d bytes\n", payload_size);
-    printf("Payload:\n");
-    for (int i = payload_offset; i < payload_offset + payload_size; i++)
-    {
-        printf("%02x ", packet_body[i]);
-    }
-    printf("\n");
-
-    // Extract and print the FCS field
-    uint32_t fcs = *(uint32_t *)(packet_body + packet_header.caplen - 4);
-    printf("FCS: %08x\n", ntohl(fcs));
-}
-
-uint16_t validate_udp_checksum(const struct snoop_udp *udp)
-{
-    uint16_t *ptr = (uint16_t *)udp;
-    size_t len = sizeof(struct snoop_udp);
-    uint32_t sum = 0;
-
-    while (len > 1)
-    {
-        sum += *ptr++;
-        len -= sizeof(uint16_t);
-    }
-
-    if (len) sum += *(uint8_t *)ptr;
-
-    sum = (sum >> 16) + (sum & 0xFFFF);
-    sum += (sum >> 16);
-
-    return (uint16_t)(~sum);
-}
-
-void process_udp(const struct snoop_udp *udp)
-{
-    printf("    Src Port: %d\n", udp->uh_sport);
-    printf("    Dst Port: %d\n", udp->uh_dport);
-    printf("    Checksum Validation: %d\n", validate_udp_checksum(udp) == 0);
-}
 
 void got_packet(u_char *args, const struct pcap_pkthdr *header,
                 const u_char *packet)
@@ -100,8 +40,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
             break;
         case IPPROTO_UDP:
             printf("   Protocol: UDP\n");
-            udp = (struct snoop_udp *)(packet + SIZE_ETHERNET + size_ip);
-            process_udp(udp);
+            process_udp(args, header, packet);
             return;
         case IPPROTO_ICMP:
             printf("   Protocol: ICMP\n");
@@ -113,21 +52,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
             printf("   Protocol: unknown\n");
             return;
     }
-
-    // tcp = (struct snoop_tcp *)(packet + SIZE_ETHERNET + size_ip);
-    // size_tcp = TH_OFF(tcp) * 4;
-    // if (size_tcp < 20)
-    // {
-    //     printf("   * Invalid TCP header length: %u bytes\n", size_tcp);
-    //     return;
-    // }
-    // payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
-}
-
-void process_packet(u_char *args, const struct pcap_pkthdr *packet_header,
-                    const u_char *packet_body)
-{
-    print_eth_frame(packet_body, *packet_header);
 }
 
 int main(int argc, char **argv)
@@ -162,7 +86,7 @@ int main(int argc, char **argv)
     // Compile the string `str` into a filter program.
     if (pcap_compile(handle, &filter,
                      // /*str*/ "ether proto 0x0800",
-                     "udp port 53",
+                     "udp dst port 53",
                      /*optimize*/ 1, PCAP_NETMASK_UNKNOWN) == -1)
     {
         printf("Couldn't compile filter: %s\n", pcap_geterr(handle));
