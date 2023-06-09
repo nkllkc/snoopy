@@ -1,5 +1,7 @@
 # Snoopy - Let's snoop some ethernet
 
+**THIS IS CURRENT ONGOING WORK AS OF 06/06/23**
+
 This is a simple, educational, implementation of a [network packet analyzer](https://en.wikipedia.org/wiki/Packet_analyzer).
 
 ## Hardware Used
